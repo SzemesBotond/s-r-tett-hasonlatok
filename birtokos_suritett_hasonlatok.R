@@ -59,7 +59,7 @@ for(i in 1:length(birtokszo)){
 capture.output(birtokszo1, file=paste("birtokszavak_lemma2.txt",sep=""))
 
 #emagyar elemzés betöltése, melléknevekkel jelölt szavak és pár főnév kiszedése
-birtokszo_elemzett <- read.table("C:/Users/DELL/Desktop/TextAnalysisR/data/magyar_regeny/hasonlat/birtokhas/emagyar_lemma_output1.txt", header = FALSE, fill = TRUE, encoding = "UTF-8", blank.lines.skip = FALSE)
+birtokszo_elemzett <- read.table("Elérési út", header = FALSE, fill = TRUE, encoding = "UTF-8", blank.lines.skip = FALSE)
 birtokszo_elemzett <- split(birtokszo_elemzett, cumsum(birtokszo_elemzett[,1] == ""))
 birtokszo_elemzett1 <- list() 
 birtokszo_elemzett2 <- list()
@@ -124,7 +124,7 @@ for (i in 1:length(files.v)) {
 names(birtokhas1) <- files.v
 
 #az eredmények kiírása
-capture.output(birtokhas1,file=paste("C:/Users/DELL/Desktop/TextAnalysisR/data/magyar_regeny/hasonlat/birtokhas/birtokhas_osszes2.txt"))
+capture.output(birtokhas1,file=paste("Elérési út"))
 
 
 
@@ -204,4 +204,4 @@ for(i in 1:length(hasbirt_szurt_extra)){
 
 #a fájlok nevéből a szerzőt és címet megtartani, majd txt fájba kírni
 names(birtokhas_extra1) <- files.v
-capture.output(birtokhas_extra1,file=paste("C:/Users/DELL/Desktop/TextAnalysisR/data/magyar_regeny/hasonlat/birtokhas/birtokhas_extra_0927_erejevel.txt"))
+capture.output(birtokhas_extra1,file=paste("Elérési út"))
