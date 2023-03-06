@@ -1,6 +1,3 @@
-library(dplyr)
-library(tidytext)
-
 # magyarlnc által elemzett szövegek
 input.dir <- "YOUR DIR"
 files.v <- dir(input.dir, "\\.txt$")
@@ -9,118 +6,109 @@ for(i in 1:length(files.v)){
   my.corpus.l [[i]] <- read.table(paste(input.dir, files.v[[i]], sep="/"), header = FALSE, fill = TRUE, encoding = "UTF-8", blank.lines.skip = FALSE)
 }
 
+## használt függvények
+intersect_lists <- function (x,y) {
+  lapply(seq(length(my.corpus.l)),
+         function(i) Reduce(intersect,lapply(list(x, y),"[[",i)))
+}
+
+grep_list_df <- function (x, y){
+  lapply(my.corpus.l, 
+         function(df) grep(x, df[,y], ignore.case = T))
+}
+
+prev_pos <- function (a,b){
+  lapply(a, function(x) x-b)
+}
+
+next_pos <- function (a,b){
+  lapply(a, function(x) x+b)
+}
+
+library(dplyr)
+library(tidytext)
+
+
 #fn stop
 stop_gyanfn <- scan("C:/Users/DELL/Desktop/TextAnalysisR/data/magyar_regeny/hasonlat/gyanant_fnstop.txt",
                     what="character", sep="\f", quote = "", encoding = "UTF-8")
 stop_gy <- paste(stop_gyanfn, collapse = "|")
-stop_gyan <- data.frame(stop_gyanfn)
-
 
 #ige stop
 stop_gyanige <- scan("C:/Users/DELL/Desktop/TextAnalysisR/data/magyar_regeny/hasonlat/gyanant_igestop.txt",
-                    what="character", sep="\f", quote = "", encoding = "UTF-8")
+                     what="character", sep="\f", quote = "", encoding = "UTF-8")
 stop_gyi <- paste(stop_gyanige, collapse = "|")
-stop_gyani <- data.frame(stop_gyanige)
 
-# "gyanánt" és stopszavak pozíciója
-gyanpoz <- list()
-gyanpoz1 <- list()
-gyanstop_poz <- list()
-gyanistop_poz <- list()
-gyan_kontext <- list()
-for (i in 1:length(my.corpus.l)){
-  gyanpoz[[i]] <- grep("gyanánt", my.corpus.l[[i]]$V2) 
-  gyanpoz[[i]] <- gyanpoz[[i]]-1 
-  gyanstop_poz[[i]] <- grep(stop_gy, my.corpus.l[[i]]$V2)
-  gyanpoz1[[i]] <- gyanpoz[[i]][!gyanpoz[[i]]%in%gyanstop_poz[[i]]]
-  gyanistop_poz[[i]] <-grep(stop_gyi, my.corpus.l[[i]]$V2)
+# "gyanánt" előtt főnév és stopszavak pozíciója
+gyanpoz <- prev_pos(grep_list_df("gyanánt", 2),1)
+gyanstoppoz <- grep_list_df(stop_gy, 2)
+igestoppoz <- grep_list_df(stop_gyi, 2)
+#főnév stopszavak szűrése
+gyanpoz1 <- lapply(seq(length(gyanpoz)),
+                   function(i) Reduce(setdiff,lapply(list(gyanpoz, gyanstoppoz),"[[",i)))
+#kontextus, amiben igei stopszavak előfordulhatnak
+gyanpoz_prev10 <- prev_pos(gyanpoz1,10)
+gyanpoz_next10 <- next_pos(gyanpoz1,10)
+start_end_df <- lapply(seq(length(my.corpus.l)),
+                       function(i) tibble(gyanpoz_next10[[i]], gyanpoz_prev10[[i]]))
+start_end_df <- lapply(start_end_df, setNames, c("start", "end"))
+start_end <- lapply(start_end_df, with, Map(`:`, start, end))
+#igei stopszavak szűrése
+igestop_match <- lapply(seq(length(my.corpus.l)), function (i)
+  lapply(r[[i]], intersect, igestoppoz[[i]]))
+igestop_match <- lapply(seq(length(my.corpus.l)), function (i)
+  lapply(igestop_match[[i]], '>', 0))
+gyanpoz_szurt <- lapply(seq(length(my.corpus.l)), function (i)
+  which(lapply(igestop_match[[i]], '>', 0) != "TRUE"))
+gyanpoz_szurt <- lapply(seq(length(my.corpus.l)), function (i)
+  gyanpoz[[i]][gyanpoz_szurt[[i]]])
+
+szavak <- lapply(my.corpus.l, "[", , "V1")
+
+#szavak a szűrés után + kontextus
+fn_gyan_prev2 <- Map(`[`, szavak, prev_pos(gyanpoz_szurt,2) )
+fn_gyan_pev1 <- Map(`[`, szavak, prev_pos(gyanpoz_szurt,1) )
+fn_gyan <- Map(`[`, szavak, gyanpoz_szurt )
+gyan <- Map(`[`, szavak, next_pos(gyanpoz_szurt,1) )
+gyan_next1 <- Map(`[`, szavak, next_pos(gyanpoz_szurt,2) )
+gyan_next2 <- Map(`[`, szavak, next_pos(gyanpoz_szurt,3) )
+gyan_next3 <- Map(`[`, szavak, next_pos(gyanpoz_szurt,4) )
+gyan_next4 <- Map(`[`, szavak, next_pos(gyanpoz_szurt,5) )
+gyan_next5 <- Map(`[`, szavak, next_pos(gyanpoz_szurt,6) )
+gyan_next6 <- Map(`[`, szavak, next_pos(gyanpoz_szurt,7) )
+
+# gyanánt + kontextus
+fn_gyan_df <- lapply(seq(length(fn_gyan)),
+                     function(j)
+                       lapply(seq(length(fn_gyan[[j]])),
+                              function (i) 
+                                if(length(fn_gyan[[j]]>0))
+                                  tibble(
+                                fn_gyan_prev2 = fn_gyan_prev2[[j]][[i]],
+                                fn_gyan_prev1 = fn_gyan_prev1[[j]][[i]],
+                                fn_gyan = fn_gyan [[j]][[i]],
+                                gyanánt = gyan[[j]] [[i]],
+                                gyan_next1 = gyan_next1[[j]][[i]],
+                                gyan_next2 = gyan_next2[[j]][[i]],
+                                gyan_next3 = gyan_next3[[j]][[i]],
+                                gyan_next4 = gyan_next4[[j]][[i]],
+                                gyan_next5 = gyan_next5[[j]][[i]],
+                                gyan_next6 = gyan_next6[[j]][[i]]
+                              )
+                              else
+                                0))
+
+for(i in seq(my.corpus.l)){
+  fn_gyan_df [[i]] <- do.call("rbind", fn_gyan_df[[i]])
 }
+fn_gyan_df <- lapply(fn_gyan_df, setNames, as.character(c(1:10)))
 
+#eredmények kiírása
+files.v <- lapply(files.v, str_remove_all, "(.txt|out_)")
+names(fn_gyan_df) <- files.v
+options(dplyr.print_max = 1e9)
+capture.output(fn_gyan_df, file="proba1.txt")
 
-
-# főnév stopszűrés utáni kontextusa a gyanánt szavaknak
-
-# a kontextusok pozíciói
-r2 <- list()
-r1 <- list()
-for(i in 1:length(gyanpoz)){
-  r1[[i]]<-gyanpoz1[[i]]-2
-  r2[[i]]<-gyanpoz1[[i]]+3
-}
-
-#a kontextus
-gyan_kontext <- gyanpoz1 
-for (i in 1:length(my.corpus.l)){
-  gyan_kontext[[i]] <- list(gyanpoz1[[i]])
-  for(j in 1:length(gyanpoz1[[i]])){
-    if (length(gyanpoz1[[i]]) >0){
-    gyan_kontext[[i]][[j]] <- r1[[i]][[j]]:r2[[i]][[j]]
-    }
-  else{
-    gyan_kontext[[i]] <- 0  
-  }
-}}
-
-# a kiszűrése annak, ha a kontextusban szerepel olyan ige, ami stopszó 
-gyan_kontext1 <- gyan_kontext
-for (i in 1:length(my.corpus.l)){
-  for(j in 1:length(gyan_kontext1[[i]])) {
-    if (length(intersect(gyan_kontext1[[i]][[j]],gyanistop_poz[[i]])) >0)
-      {
-      gyan_kontext1[[i]][[j]] <- 0
-    }
-  }
-}
 
 # összes példány összeszámolása
-gyan_ossz <- gyan_kontext1
-gyan_osszes <- list()
-for(i in 1:length(gyan_kontext1)){
-  for(j in 1:length(gyan_kontext1[[i]])){
-    gyan_ossz[[i]][[j]]  <- length(gyan_kontext1[[i]][[j]])
-  }
-  gyan_osszes[[i]] <- length(gyan_ossz[[i]][which(gyan_ossz[[i]] > 1)])
-}
-
-unlist(gyan_osszes)
-
-
-###
-## minta hozása kézi elemzéshez
-gyan_kontext2 <- gyan_kontext1
-for (i in 1:length(my.corpus.l)){
-  for(j in 1:length(gyan_kontext1[[i]])) {
-    if (class(gyan_kontext1[[i]][[j]]) == "integer"){
-      gyan_kontext2 [[i]][[j]] <-(gyan_kontext1[[i]][[j]][3]-10):(gyan_kontext1[[i]][[j]][3]+10) 
-    }
-  }
-}
-
-szavak <- list()
-for(i in 1:length(my.corpus.l)){
-  szavak [[i]] <- my.corpus.l[[i]]
-}
-gyan_szurt <- szavak
-for(i in 1:length(my.corpus.l)){
-  gyan_szurt[[i]] <- list(szavak[[i]])
-  for(j in 1:length(gyan_kontext2[[i]])){
-    if (length(gyan_kontext2[[i]][[j]]) >0){
-      gyan_szurt[[i]][[j]] <- szavak[[i]][gyan_kontext2[[i]][[j]],1]}
-    else{
-      gyan_szurt[[i]] <- 0  
-    }
-  }}
-
-
-gyan_minta <- unlist(gyan_minta, recursive = F)
-gyan_minta <- gyan_minta[lapply(gyan_minta,length)>0]
-
-gyan_minta1   <- gyan_szurt
-for(i in 1:length(gyan_szurt)){
-  for(j in 1:length(gyan_szurt[[i]])){
-    if(class(gyan_szurt[[i]])== "list"){    
-      gyan_minta1[[i]][[j]] <- paste(unlist(gyan_szurt[[i]][j]), collapse = " " )}
-  }}
-
-gyan_minta2 <- sample(unlist(gyan_minta1), size = 200, replace = F)
-capture.output(gyan_minta2,file=paste("C:/Users/DELL/Desktop/TextAnalysisR/data/magyar_regeny/hasonlat/gyanant_minta_stop_uj.txt"))
+osszgyan <- sapply(fn_gyan_df, nrow)
